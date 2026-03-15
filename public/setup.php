@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Services\InstallerService;
+use App\Services\MigrationService;
 
 if (session_status() !== PHP_SESSION_ACTIVE) {
     session_name('movievault_setup');
@@ -15,7 +16,6 @@ if (isset($_SERVER['SCRIPT_NAME'])) {
     $basePath = $basePath === '/' ? '' : rtrim($basePath, '/');
 }
 
-$dbPath = __DIR__ . '/../storage/movievault.sqlite';
 $missingExtensions = array_values(array_filter(
     ['pdo_sqlite', 'sqlite3'],
     static fn (string $extension): bool => !extension_loaded($extension)
@@ -27,7 +27,11 @@ if ($missingExtensions !== []) {
     exit;
 }
 
-if (is_file($dbPath)) {
+$app = require __DIR__ . '/../bootstrap/app.php';
+/** @var MigrationService $migrations */
+$migrations = $app->make(MigrationService::class);
+
+if ($migrations->isInstalledDatabase()) {
     header('Location: ' . ($basePath !== '' ? $basePath . '/' : '/'));
     exit;
 }
@@ -60,7 +64,6 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     }
 
     if ($errors === []) {
-        $app = require __DIR__ . '/../bootstrap/app.php';
         /** @var InstallerService $installer */
         $installer = $app->make(InstallerService::class);
         $installResult = $installer->install($adminEmail, rtrim($baseUrl, '/'));

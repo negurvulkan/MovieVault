@@ -29,6 +29,7 @@ use App\Services\HttpClient;
 use App\Services\InvitationBulkService;
 use App\Services\InstallerService;
 use App\Services\MetadataService;
+use App\Services\MigrationService;
 use App\Services\PermissionGate;
 use App\Services\RecommendationService;
 use App\Services\RoleBulkService;
@@ -53,6 +54,7 @@ final class Application
         $this->bootstrapSession();
         $this->ensureDirectories();
         $this->registerBindings();
+        $this->ensureCurrentSchema();
         $this->registerRoutes();
     }
 
@@ -237,6 +239,11 @@ final class Application
             $c->get(CatalogRepository::class),
             $c->get(HttpClient::class)
         ));
+        $this->container->singleton(MigrationService::class, fn (Container $c) => new MigrationService(
+            $this->config,
+            $c->get(Database::class),
+            $c->get(UserRepository::class)
+        ));
         $this->container->singleton(CsvImportService::class, fn (Container $c) => new CsvImportService(
             $this->config,
             $c->get(CatalogRepository::class),
@@ -282,7 +289,7 @@ final class Application
         ));
         $this->container->singleton(InstallerService::class, fn (Container $c) => new InstallerService(
             $this->config,
-            $c->get(Database::class),
+            $c->get(MigrationService::class),
             $c->get(UserRepository::class),
             $c->get(SettingRepository::class)
         ));
@@ -292,5 +299,16 @@ final class Application
     {
         $router = $this->router();
         require __DIR__ . '/../../routes/web.php';
+    }
+
+    private function ensureCurrentSchema(): void
+    {
+        if (!extension_loaded('pdo_sqlite')) {
+            return;
+        }
+
+        /** @var MigrationService $migrations */
+        $migrations = $this->container->get(MigrationService::class);
+        $migrations->ensureCurrentSchema();
     }
 }

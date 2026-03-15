@@ -2,25 +2,22 @@
 
 declare(strict_types=1);
 
-use App\Repositories\UserRepository;
+use App\Services\MigrationService;
 
 $app = require __DIR__ . '/../bootstrap/app.php';
 
-$migrationFiles = glob(__DIR__ . '/../database/migrations/*.sql') ?: [];
-sort($migrationFiles);
+/** @var MigrationService $migrations */
+$migrations = $app->make(MigrationService::class);
 
-foreach ($migrationFiles as $file) {
-    $sql = file_get_contents($file);
-    if (is_string($sql) && trim($sql) !== '') {
-        $app->db()->pdo()->exec($sql);
-        echo 'Ausgefuehrt: ' . basename($file) . PHP_EOL;
-    }
+if (!$migrations->databaseExists()) {
+    fwrite(STDERR, "Keine bestehende Datenbank gefunden. Fuer eine Neuinstallation bitte php bin/install.php nutzen.\n");
+    exit(1);
 }
 
-/** @var UserRepository $users */
-$users = $app->make(UserRepository::class);
-$permissions = require __DIR__ . '/../config/permissions.php';
-$users->seedPermissions($permissions);
-$users->ensureSystemRoles();
+$applied = $migrations->installSchema();
+
+foreach ($applied as $migration) {
+    echo 'Ausgefuehrt: ' . $migration . PHP_EOL;
+}
 
 echo "Migrationen und Rechte wurden aktualisiert.\n";

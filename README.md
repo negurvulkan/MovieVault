@@ -18,6 +18,7 @@ Serverseitig gerenderte Medienverwaltung fuer Filme und Serien auf DVD und Blu-r
 3. Im Browser die Projekt-URL aufrufen.
 4. Wenn `pdo_sqlite` und `sqlite3` aktiv sind, erscheint automatisch der Web-Installer.
 5. Admin-E-Mail eintragen, Installation starten und den erzeugten Einladungslink oeffnen.
+6. Bestehende Installationen ziehen beim ersten App-Start fehlende Migrationen automatisch nach.
 
 ### Klassisch mit CLI
 
@@ -33,7 +34,7 @@ Serverseitig gerenderte Medienverwaltung fuer Filme und Serien auf DVD und Blu-r
 
 ### Update bestehender Installationen
 
-Nach Deploys mit neuen Modulen oder Rechten die Migrationen einmal nachziehen:
+Normalerweise zieht MovieVault neue Migrationen beim App-Start automatisch nach. Falls du das Update manuell anstossen willst oder per CLI kontrollieren moechtest:
 
 ```bash
 php bin/migrate.php

@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Core\Config;
-use App\Core\Database;
 use App\Repositories\SettingRepository;
 use App\Repositories\UserRepository;
 
@@ -13,7 +12,7 @@ final class InstallerService
 {
     public function __construct(
         private readonly Config $config,
-        private readonly Database $db,
+        private readonly MigrationService $migrations,
         private readonly UserRepository $users,
         private readonly SettingRepository $settings
     ) {
@@ -21,18 +20,7 @@ final class InstallerService
 
     public function install(string $adminEmail, string $baseUrl): array
     {
-        $migrationFiles = glob(__DIR__ . '/../../database/migrations/*.sql') ?: [];
-        sort($migrationFiles);
-
-        foreach ($migrationFiles as $file) {
-            $sql = file_get_contents($file);
-            if (is_string($sql) && trim($sql) !== '') {
-                $this->db->pdo()->exec($sql);
-            }
-        }
-
-        $permissions = require __DIR__ . '/../../config/permissions.php';
-        $this->users->seedPermissions($permissions);
+        $this->migrations->installSchema();
         $roles = $this->users->ensureSystemRoles();
 
         $this->settings->upsertMany([
