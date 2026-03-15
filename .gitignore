@@ -1,0 +1,12 @@
+/storage/cache/smarty/compile/*
+/storage/cache/smarty/cache/*
+/storage/imports/*
+/storage/logs/*
+/storage/movievault.sqlite
+/public/media/posters/*
+/config/app.local.php
+!/storage/cache/smarty/compile/.gitkeep
+!/storage/cache/smarty/cache/.gitkeep
+!/storage/imports/.gitkeep
+!/storage/logs/.gitkeep
+!/public/media/posters/.gitkeep

@@ -1,0 +1,14 @@
+DirectoryIndex index.php
+
+RewriteEngine On
+
+# Do not expose internal application directories when the repo root is the document root.
+RewriteRule ^(?:app|bootstrap|config|database|routes|storage|templates|bin)(?:/|$) - [F,L,NC]
+RewriteRule ^vendor/(?!bootstrap/)(?:.*)$ - [F,L,NC]
+RewriteRule ^public(?:/|$) - [F,L,NC]
+RewriteRule "(^|/)\.(?!well-known/)" - [F,L]
+RewriteRule ^(?:README|AGENTS)\.md$ - [F,L,NC]
+
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.php [QSA,L]
