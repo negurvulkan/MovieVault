@@ -40,6 +40,19 @@ final class CatalogRepository
         return $this->db->fetchOne('SELECT * FROM series WHERE id = :id LIMIT 1', ['id' => $id]);
     }
 
+    public function findSeriesByTitle(string $title): ?array
+    {
+        $title = trim($title);
+        if ($title === '') {
+            return null;
+        }
+
+        return $this->db->fetchOne(
+            'SELECT * FROM series WHERE lower(title) = lower(:title) LIMIT 1',
+            ['title' => $title]
+        );
+    }
+
     public function findSeriesByIds(array $ids): array
     {
         $ids = array_values(array_unique(array_filter(array_map('intval', $ids), static fn (int $id): bool => $id > 0)));
@@ -106,19 +119,7 @@ final class CatalogRepository
             return (int) $title['series_id'];
         }
 
-        foreach ($this->listSeries() as $series) {
-            if (strtolower((string) $series['title']) === strtolower((string) $title['title'])) {
-                $this->db->execute(
-                    'UPDATE catalog_titles SET series_id = :series_id, updated_at = :updated_at WHERE id = :id',
-                    ['series_id' => $series['id'], 'updated_at' => $this->now(), 'id' => $titleId]
-                );
-
-                return (int) $series['id'];
-            }
-        }
-
-        $seriesId = $this->saveSeries([
-            'title' => $title['title'],
+        $seriesId = $this->findOrCreateSeries((string) $title['title'], [
             'original_title' => $title['original_title'] ?? null,
             'year_start' => $title['year'] ?? null,
             'year_end' => $title['year'] ?? null,
@@ -132,6 +133,23 @@ final class CatalogRepository
         );
 
         return $seriesId;
+    }
+
+    public function findOrCreateSeries(string $title, array $data = []): int
+    {
+        $existing = $this->findSeriesByTitle($title);
+        if ($existing) {
+            return (int) $existing['id'];
+        }
+
+        return $this->saveSeries([
+            'title' => $title,
+            'original_title' => $data['original_title'] ?? null,
+            'year_start' => $data['year_start'] ?? null,
+            'year_end' => $data['year_end'] ?? ($data['year_start'] ?? null),
+            'overview' => $data['overview'] ?? null,
+            'poster_path' => $data['poster_path'] ?? null,
+        ]);
     }
 
     public function allTitles(array $filters = [], ?int $userId = null): array

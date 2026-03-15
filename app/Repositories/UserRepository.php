@@ -578,7 +578,21 @@ final class UserRepository
             'redaktion' => [
                 'name' => 'Redaktion',
                 'description' => 'Pflegt Titel, Exemplare und Metadaten.',
-                'permissions' => ['catalog.view', 'catalog.create', 'catalog.edit', 'copies.manage', 'metadata.enrich', 'watched.manage', 'suggestions.use', 'stats.view'],
+                'permissions' => [
+                    'catalog.view',
+                    'catalog.create',
+                    'catalog.edit',
+                    'copies.manage',
+                    'metadata.enrich',
+                    'wishlist.view',
+                    'wishlist.create',
+                    'wishlist.edit',
+                    'wishlist.convert',
+                    'wishlist.delete',
+                    'watched.manage',
+                    'suggestions.use',
+                    'stats.view',
+                ],
             ],
             'import' => [
                 'name' => 'Import',
@@ -587,8 +601,18 @@ final class UserRepository
             ],
             'viewer' => [
                 'name' => 'Viewer',
-                'description' => 'Darf Vorschlaege, Watch-Liste und Dashboard nutzen.',
-                'permissions' => ['catalog.view', 'watched.manage', 'suggestions.use', 'stats.view'],
+                'description' => 'Darf Vorschlaege, Wunschlisten, Watch-Liste und Dashboard nutzen.',
+                'permissions' => [
+                    'catalog.view',
+                    'wishlist.view',
+                    'wishlist.create',
+                    'wishlist.edit',
+                    'wishlist.convert',
+                    'wishlist.delete',
+                    'watched.manage',
+                    'suggestions.use',
+                    'stats.view',
+                ],
             ],
         ];
 

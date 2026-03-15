@@ -39,6 +39,7 @@
                         {if 'stats.view'|has_permission:$permissions}<a class="nav-link" href="{route name='dashboard'}">Dashboard</a>{/if}
                         {if 'catalog.view'|has_permission:$permissions}<a class="nav-link" href="{route name='catalog.index'}">Katalog</a>{/if}
                         {if 'catalog.view'|has_permission:$permissions}<a class="nav-link" href="{route name='series.index'}">Serien</a>{/if}
+                        {if 'wishlist.view'|has_permission:$permissions}<a class="nav-link" href="{route name='wishlist.index'}">Wunschliste</a>{/if}
                         {if 'watched.manage'|has_permission:$permissions}<a class="nav-link" href="{route name='watched.index'}">Watched-List</a>{/if}
                         {if 'suggestions.use'|has_permission:$permissions}<a class="nav-link" href="{route name='suggestions.index'}">Vorschlaege</a>{/if}
                         {if 'import.run'|has_permission:$permissions}<a class="nav-link" href="{route name='import.index'}">CSV-Import</a>{/if}
@@ -63,6 +64,8 @@
             routes: {
                 metadataSearch: '{route name="api.metadata.search"}',
                 metadataApply: '{route name="api.metadata.apply"}',
+                wishlistMetadataSearch: '{route name="api.wishlist.metadata.search"}',
+                wishlistMetadataApply: '{route name="api.wishlist.metadata.apply"}',
                 suggestions: '{route name="api.suggestions"}'
             }
         };

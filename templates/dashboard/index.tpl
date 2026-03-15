@@ -38,6 +38,8 @@
         <article class="stat-card"><span>Ungelesen fuer dich</span><strong>{$dashboard.unwatched_count}</strong></article>
         <article class="stat-card"><span>Watchtime</span><strong>{$dashboard.watchtime_minutes|minutes_to_hours}</strong></article>
         <article class="stat-card"><span>Metadaten gepflegt</span><strong>{$dashboard.metadata_coverage}</strong></article>
+        <article class="stat-card"><span>Offene Wuensche</span><strong>{$dashboard.wishlist.open_count|default:0}</strong></article>
+        <article class="stat-card"><span>Einkaufslisten</span><strong>{$dashboard.wishlist.list_count|default:0}</strong></article>
     </section>
 
     <div class="row g-4">
@@ -85,6 +87,35 @@
                     {/foreach}
                 </div>
             </div>
+            {if 'wishlist.view'|has_permission:$permissions}
+                <div class="panel-card mb-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h2 class="h4 mb-0">Wunschliste</h2>
+                        <a href="{route name='wishlist.index'}" class="btn btn-sm btn-outline-secondary">Zur Wunschliste</a>
+                    </div>
+                    <div class="vstack gap-3">
+                        <div class="list-card">
+                            <strong>Offen</strong>
+                            <span class="badge text-bg-warning">{$dashboard.wishlist.open_count|default:0}</span>
+                        </div>
+                        <div class="list-card">
+                            <strong>Reserviert</strong>
+                            <span class="badge text-bg-dark">{$dashboard.wishlist.reserved_count|default:0}</span>
+                        </div>
+                        <div class="list-card">
+                            <strong>Hohe Prioritaet</strong>
+                            <span class="badge text-bg-danger">{$dashboard.wishlist.high_priority_count|default:0}</span>
+                        </div>
+                        {if $dashboard.wishlist_last_bought}
+                            <div class="panel-subcard">
+                                <div class="small text-secondary mb-1">Zuletzt gekauft aus Wunschliste</div>
+                                <strong>{$dashboard.wishlist_last_bought.title}</strong>
+                                <div class="small text-secondary">{$dashboard.wishlist_last_bought.list_name|default:'Wunschliste'}{if $dashboard.wishlist_last_bought.bought_at|default:''} - {$dashboard.wishlist_last_bought.bought_at|fmt_date}{/if}</div>
+                            </div>
+                        {/if}
+                    </div>
+                </div>
+            {/if}
             <div class="panel-card">
                 <h2 class="h4 mb-3">Zuletzt gesehen</h2>
                     {if $dashboard.last_watch}

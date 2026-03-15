@@ -15,10 +15,12 @@ use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\SuggestionController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\WatchedController;
+use App\Http\Controllers\WishlistController;
 use App\Repositories\CatalogRepository;
 use App\Repositories\SettingRepository;
 use App\Repositories\UserRepository;
 use App\Repositories\WatchRepository;
+use App\Repositories\WishlistRepository;
 use App\Services\AuthService;
 use App\Services\BulkSnapshotService;
 use App\Services\CatalogBulkService;
@@ -34,6 +36,8 @@ use App\Services\SeriesBulkService;
 use App\Services\StatsService;
 use App\Services\UserBulkService;
 use App\Services\WatchedBulkService;
+use App\Services\WishlistBulkService;
+use App\Services\WishlistService;
 use Throwable;
 
 final class Application
@@ -208,6 +212,7 @@ final class Application
         $this->container->singleton(UserRepository::class, fn (Container $c) => new UserRepository($c->get(Database::class)));
         $this->container->singleton(CatalogRepository::class, fn (Container $c) => new CatalogRepository($c->get(Database::class)));
         $this->container->singleton(WatchRepository::class, fn (Container $c) => new WatchRepository($c->get(Database::class)));
+        $this->container->singleton(WishlistRepository::class, fn (Container $c) => new WishlistRepository($c->get(Database::class)));
         $this->container->singleton(AuthService::class, fn (Container $c) => new AuthService(
             $c->get(Session::class),
             $c->get(UserRepository::class),
@@ -246,6 +251,17 @@ final class Application
         $this->container->singleton(WatchedBulkService::class, fn (Container $c) => new WatchedBulkService(
             $c->get(WatchRepository::class)
         ));
+        $this->container->singleton(WishlistService::class, fn (Container $c) => new WishlistService(
+            $this->config,
+            $c->get(WishlistRepository::class),
+            $c->get(UserRepository::class),
+            $c->get(CatalogRepository::class),
+            $c->get(HttpClient::class)
+        ));
+        $this->container->singleton(WishlistBulkService::class, fn (Container $c) => new WishlistBulkService(
+            $c->get(WishlistRepository::class),
+            $c->get(WishlistService::class)
+        ));
         $this->container->singleton(UserBulkService::class, fn (Container $c) => new UserBulkService(
             $c->get(UserRepository::class)
         ));
@@ -261,7 +277,8 @@ final class Application
         ));
         $this->container->singleton(StatsService::class, fn (Container $c) => new StatsService(
             $c->get(CatalogRepository::class),
-            $c->get(WatchRepository::class)
+            $c->get(WatchRepository::class),
+            $c->get(WishlistRepository::class)
         ));
         $this->container->singleton(InstallerService::class, fn (Container $c) => new InstallerService(
             $this->config,

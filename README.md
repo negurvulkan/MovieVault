@@ -31,10 +31,19 @@ Serverseitig gerenderte Medienverwaltung fuer Filme und Serien auf DVD und Blu-r
 3. Das ausgegebene Einladungs-URL im Browser oeffnen und das erste Admin-Konto aktivieren.
 4. `public/` als Webroot konfigurieren.
 
+### Update bestehender Installationen
+
+Nach Deploys mit neuen Modulen oder Rechten die Migrationen einmal nachziehen:
+
+```bash
+php bin/migrate.php
+```
+
 ## Wichtige Funktionen
 
 - Benutzer, Einladungen, Rollen und Rechte
 - Filme und Staffel-Eintraege mit getrennten Exemplaren
+- Gemeinsame Wunsch- und Einkaufslisten mit Bulk-Aktionen und Uebernahme in die Sammlung
 - CSV-Import mit Mapping und Vorschau
 - Metadaten-Suche ueber TMDb und Wikidata
 - Lokaler Poster-Cache

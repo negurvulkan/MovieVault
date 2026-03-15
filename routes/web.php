@@ -13,6 +13,7 @@ use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\SuggestionController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\WatchedController;
+use App\Http\Controllers\WishlistController;
 
 $router->get('/login', [AuthController::class, 'showLogin'], 'login', ['guest' => true]);
 $router->post('/login', [AuthController::class, 'login'], 'login.submit', ['guest' => true]);
@@ -44,6 +45,21 @@ $router->post('/watched/{id}/delete', [WatchedController::class, 'delete'], 'wat
 $router->post('/watched/bulk/preview', [WatchedController::class, 'previewBulk'], 'watched.bulk.preview', ['auth' => true, 'permission' => 'watched.manage']);
 $router->post('/watched/bulk/execute', [WatchedController::class, 'executeBulk'], 'watched.bulk.execute', ['auth' => true, 'permission' => 'watched.manage']);
 
+$router->get('/wishlist', [WishlistController::class, 'index'], 'wishlist.index', ['auth' => true, 'permission' => 'wishlist.view']);
+$router->get('/wishlist/create', [WishlistController::class, 'create'], 'wishlist.create', ['auth' => true, 'permission' => 'wishlist.create']);
+$router->post('/wishlist/create', [WishlistController::class, 'store'], 'wishlist.store', ['auth' => true, 'permission' => 'wishlist.create']);
+$router->get('/wishlist/{id}/edit', [WishlistController::class, 'edit'], 'wishlist.edit', ['auth' => true, 'permission' => 'wishlist.view']);
+$router->post('/wishlist/{id}/edit', [WishlistController::class, 'update'], 'wishlist.update', ['auth' => true, 'permission' => 'wishlist.edit']);
+$router->post('/wishlist/{id}/delete', [WishlistController::class, 'delete'], 'wishlist.delete', ['auth' => true, 'permission' => 'wishlist.delete']);
+$router->post('/wishlist/lists/create', [WishlistController::class, 'storeList'], 'wishlist.lists.store', ['auth' => true, 'permission' => 'wishlist.create']);
+$router->post('/wishlist/lists/{id}/edit', [WishlistController::class, 'updateList'], 'wishlist.lists.update', ['auth' => true, 'permission' => 'wishlist.edit']);
+$router->post('/wishlist/{id}/reserve', [WishlistController::class, 'reserve'], 'wishlist.reserve', ['auth' => true, 'permission' => 'wishlist.edit']);
+$router->post('/wishlist/{id}/buy', [WishlistController::class, 'buy'], 'wishlist.buy', ['auth' => true, 'permission' => 'wishlist.edit']);
+$router->post('/wishlist/{id}/drop', [WishlistController::class, 'drop'], 'wishlist.drop', ['auth' => true, 'permission' => 'wishlist.edit']);
+$router->post('/wishlist/{id}/convert', [WishlistController::class, 'convert'], 'wishlist.convert', ['auth' => true, 'permission' => 'wishlist.convert']);
+$router->post('/wishlist/bulk/preview', [WishlistController::class, 'previewBulk'], 'wishlist.bulk.preview', ['auth' => true, 'permission' => 'wishlist.view']);
+$router->post('/wishlist/bulk/execute', [WishlistController::class, 'executeBulk'], 'wishlist.bulk.execute', ['auth' => true, 'permission' => 'wishlist.view']);
+
 $router->get('/suggestions', [SuggestionController::class, 'index'], 'suggestions.index', ['auth' => true, 'permission' => 'suggestions.use']);
 $router->get('/api/suggestions', [SuggestionController::class, 'api'], 'api.suggestions', ['auth' => true, 'permission' => 'suggestions.use']);
 
@@ -71,3 +87,5 @@ $router->post('/settings', [SettingsController::class, 'update'], 'settings.upda
 
 $router->get('/api/metadata/search', [MetadataController::class, 'search'], 'api.metadata.search', ['auth' => true, 'permission' => 'metadata.enrich']);
 $router->post('/api/metadata/apply', [MetadataController::class, 'apply'], 'api.metadata.apply', ['auth' => true, 'permission' => 'metadata.enrich']);
+$router->get('/api/wishlist/metadata/search', [WishlistController::class, 'metadataSearch'], 'api.wishlist.metadata.search', ['auth' => true, 'permission' => 'metadata.enrich']);
+$router->post('/api/wishlist/metadata/apply', [WishlistController::class, 'metadataApply'], 'api.wishlist.metadata.apply', ['auth' => true, 'permission' => 'metadata.enrich']);

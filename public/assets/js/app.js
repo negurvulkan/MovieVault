@@ -71,6 +71,74 @@
         window.location.reload();
     }
 
+    async function loadWishlistMetadata(button) {
+        const wishItemId = button.dataset.wishItemId;
+        const container = button.closest(".panel-card")?.querySelector(".js-wishlist-metadata-results");
+        if (!wishItemId || !container) {
+            return;
+        }
+
+        container.innerHTML = '<div class="text-secondary">Suche laeuft...</div>';
+
+        const url = new URL(appConfig.routes.wishlistMetadataSearch, window.location.origin);
+        url.searchParams.set("wish_item_id", wishItemId);
+
+        const response = await fetch(url.toString(), { credentials: "same-origin" });
+        const payload = await response.json();
+
+        if (!response.ok || payload.error) {
+            container.innerHTML = `<div class="alert alert-warning mb-0">${payload.error || "Keine Treffer gefunden."}</div>`;
+            return;
+        }
+
+        if (!payload.results || payload.results.length === 0) {
+            container.innerHTML = '<div class="text-secondary">Keine Treffer gefunden.</div>';
+            return;
+        }
+
+        container.innerHTML = payload.results.map((result) => `
+            <article class="metadata-item">
+                <div class="d-flex justify-content-between gap-3">
+                    <div>
+                        <h3>${escapeHtml(result.title || "Treffer")}</h3>
+                        <div class="small text-secondary">${escapeHtml(result.provider)}${result.year ? " - " + escapeHtml(String(result.year)) : ""}</div>
+                    </div>
+                    <button type="button"
+                            class="btn btn-sm btn-outline-primary js-apply-wishlist-metadata"
+                            data-wish-item-id="${escapeHtml(String(wishItemId))}"
+                            data-provider="${escapeHtml(result.provider)}"
+                            data-external-id="${escapeHtml(result.external_id)}">
+                        Anwenden
+                    </button>
+                </div>
+                <p class="mb-0 mt-2">${escapeHtml(result.overview || "Keine Beschreibung vorhanden.")}</p>
+            </article>
+        `).join("");
+    }
+
+    async function applyWishlistMetadata(button) {
+        const formData = new FormData();
+        formData.set("csrf_token", appConfig.csrfToken || "");
+        formData.set("wish_item_id", button.dataset.wishItemId || "");
+        formData.set("provider", button.dataset.provider || "");
+        formData.set("external_id", button.dataset.externalId || "");
+        formData.set("overwrite", "0");
+
+        const response = await fetch(appConfig.routes.wishlistMetadataApply, {
+            method: "POST",
+            body: formData,
+            credentials: "same-origin",
+        });
+        const payload = await response.json();
+
+        if (!response.ok || payload.error) {
+            window.alert(payload.error || "Metadaten konnten nicht uebernommen werden.");
+            return;
+        }
+
+        window.location.reload();
+    }
+
     async function refreshSuggestion(button) {
         const card = button.closest(".js-suggestion-card");
         if (!card) {
@@ -115,9 +183,21 @@
             return;
         }
 
+        const wishlistMetadataButton = event.target.closest(".js-wishlist-metadata-search");
+        if (wishlistMetadataButton) {
+            loadWishlistMetadata(wishlistMetadataButton).catch((error) => window.alert(error.message));
+            return;
+        }
+
         const applyButton = event.target.closest(".js-apply-metadata");
         if (applyButton) {
             applyMetadata(applyButton).catch((error) => window.alert(error.message));
+            return;
+        }
+
+        const wishlistApplyButton = event.target.closest(".js-apply-wishlist-metadata");
+        if (wishlistApplyButton) {
+            applyWishlistMetadata(wishlistApplyButton).catch((error) => window.alert(error.message));
             return;
         }
 
