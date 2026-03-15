@@ -13,19 +13,51 @@ final class CatalogRepository
     {
     }
 
-    public function listSeries(): array
+    public function listSeries(array $filters = []): array
     {
-        return $this->db->fetchAll(
-            'SELECT series.*,
-                    (SELECT COUNT(*) FROM catalog_titles WHERE series_id = series.id) AS season_count
-             FROM series
-             ORDER BY lower(sort_title)'
-        );
+        $sql = 'SELECT series.*,
+                       (SELECT COUNT(*) FROM catalog_titles WHERE series_id = series.id) AS season_count
+                FROM series';
+        $conditions = [];
+        $params = [];
+
+        if (!empty($filters['q'])) {
+            $conditions[] = '(series.title LIKE :search OR series.original_title LIKE :search)';
+            $params['search'] = '%' . trim((string) $filters['q']) . '%';
+        }
+
+        if ($conditions !== []) {
+            $sql .= ' WHERE ' . implode(' AND ', $conditions);
+        }
+
+        $sql .= ' ORDER BY lower(sort_title)';
+
+        return $this->db->fetchAll($sql, $params);
     }
 
     public function findSeries(int $id): ?array
     {
         return $this->db->fetchOne('SELECT * FROM series WHERE id = :id LIMIT 1', ['id' => $id]);
+    }
+
+    public function findSeriesByIds(array $ids): array
+    {
+        $ids = array_values(array_unique(array_filter(array_map('intval', $ids), static fn (int $id): bool => $id > 0)));
+        if ($ids === []) {
+            return [];
+        }
+
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $statement = $this->db->pdo()->prepare(
+            'SELECT series.*,
+                    (SELECT COUNT(*) FROM catalog_titles WHERE series_id = series.id) AS season_count
+             FROM series
+             WHERE series.id IN (' . $placeholders . ')
+             ORDER BY lower(sort_title)'
+        );
+        $statement->execute($ids);
+
+        return $statement->fetchAll() ?: [];
     }
 
     public function saveSeries(array $data, ?int $id = null): int
@@ -61,6 +93,45 @@ final class CatalogRepository
         );
 
         return $id;
+    }
+
+    public function createSeriesFromTitle(int $titleId): int
+    {
+        $title = $this->findTitle($titleId);
+        if (!$title) {
+            throw new \RuntimeException('Titel nicht gefunden.');
+        }
+
+        if (!empty($title['series_id'])) {
+            return (int) $title['series_id'];
+        }
+
+        foreach ($this->listSeries() as $series) {
+            if (strtolower((string) $series['title']) === strtolower((string) $title['title'])) {
+                $this->db->execute(
+                    'UPDATE catalog_titles SET series_id = :series_id, updated_at = :updated_at WHERE id = :id',
+                    ['series_id' => $series['id'], 'updated_at' => $this->now(), 'id' => $titleId]
+                );
+
+                return (int) $series['id'];
+            }
+        }
+
+        $seriesId = $this->saveSeries([
+            'title' => $title['title'],
+            'original_title' => $title['original_title'] ?? null,
+            'year_start' => $title['year'] ?? null,
+            'year_end' => $title['year'] ?? null,
+            'overview' => $title['overview'] ?? null,
+            'poster_path' => $title['poster_path'] ?? null,
+        ]);
+
+        $this->db->execute(
+            'UPDATE catalog_titles SET series_id = :series_id, updated_at = :updated_at WHERE id = :id',
+            ['series_id' => $seriesId, 'updated_at' => $this->now(), 'id' => $titleId]
+        );
+
+        return $seriesId;
     }
 
     public function allTitles(array $filters = [], ?int $userId = null): array
@@ -115,6 +186,38 @@ final class CatalogRepository
         $sql .= ' ORDER BY lower(ct.sort_title), ct.year DESC, ct.season_number';
 
         $titles = $this->db->fetchAll($sql, $params);
+        return $this->attachGenres($titles);
+    }
+
+    public function findTitlesByIds(array $ids, ?int $userId = null): array
+    {
+        $ids = array_values(array_unique(array_filter(array_map('intval', $ids), static fn (int $id): bool => $id > 0)));
+        if ($ids === []) {
+            return [];
+        }
+
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $params = $ids;
+        $sql = 'SELECT ct.*,
+                       s.title AS series_title,
+                       (SELECT COUNT(*) FROM copies c WHERE c.catalog_title_id = ct.id) AS copies_count';
+        if ($userId !== null) {
+            $sql .= ',
+                       EXISTS(SELECT 1 FROM watch_events we WHERE we.catalog_title_id = ct.id AND we.user_id = ?) AS watched';
+            $params = array_merge([$userId], $ids);
+        } else {
+            $sql .= ', 0 AS watched';
+        }
+
+        $sql .= ' FROM catalog_titles ct
+                  LEFT JOIN series s ON s.id = ct.series_id
+                  WHERE ct.id IN (' . $placeholders . ')
+                  ORDER BY lower(ct.sort_title), ct.year DESC, ct.season_number';
+
+        $statement = $this->db->pdo()->prepare($sql);
+        $statement->execute($params);
+        $titles = $statement->fetchAll() ?: [];
+
         return $this->attachGenres($titles);
     }
 
@@ -289,6 +392,38 @@ final class CatalogRepository
     public function findCopy(int $copyId): ?array
     {
         return $this->db->fetchOne('SELECT * FROM copies WHERE id = :id LIMIT 1', ['id' => $copyId]);
+    }
+
+    public function deleteTitles(array $ids): int
+    {
+        $ids = array_values(array_unique(array_filter(array_map('intval', $ids), static fn (int $id): bool => $id > 0)));
+        if ($ids === []) {
+            return 0;
+        }
+
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $statement = $this->db->pdo()->prepare(
+            'DELETE FROM catalog_titles WHERE id IN (' . $placeholders . ')'
+        );
+        $statement->execute($ids);
+
+        return $statement->rowCount();
+    }
+
+    public function deleteSeries(array $ids): int
+    {
+        $ids = array_values(array_unique(array_filter(array_map('intval', $ids), static fn (int $id): bool => $id > 0)));
+        if ($ids === []) {
+            return 0;
+        }
+
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $statement = $this->db->pdo()->prepare(
+            'DELETE FROM series WHERE id IN (' . $placeholders . ')'
+        );
+        $statement->execute($ids);
+
+        return $statement->rowCount();
     }
 
     public function findTitleByExternal(string $provider, string $externalId): ?array

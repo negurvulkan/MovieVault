@@ -120,6 +120,79 @@
         }
     });
 
+    document.addEventListener("change", (event) => {
+        const master = event.target.closest(".js-bulk-master");
+        if (master) {
+            toggleBulkGroup(master.dataset.bulkGroup || "", master.checked);
+            return;
+        }
+
+        const item = event.target.closest(".js-bulk-item");
+        if (item) {
+            syncBulkGroup(item.dataset.bulkGroup || "");
+            return;
+        }
+
+        const action = event.target.closest(".js-bulk-action");
+        if (action) {
+            updateBulkFields(action.dataset.bulkGroup || "", action.value);
+        }
+    });
+
+    document.querySelectorAll(".js-bulk-action").forEach((action) => {
+        updateBulkFields(action.dataset.bulkGroup || "", action.value);
+    });
+    document.querySelectorAll(".js-bulk-item").forEach((item) => {
+        syncBulkGroup(item.dataset.bulkGroup || "");
+    });
+
+    function toggleBulkGroup(group, checked) {
+        if (!group) {
+            return;
+        }
+
+        document.querySelectorAll(`.js-bulk-item[data-bulk-group="${group}"]`).forEach((item) => {
+            if (!item.disabled) {
+                item.checked = checked;
+            }
+        });
+        syncBulkGroup(group);
+    }
+
+    function syncBulkGroup(group) {
+        if (!group) {
+            return;
+        }
+
+        const items = Array.from(document.querySelectorAll(`.js-bulk-item[data-bulk-group="${group}"]`))
+            .filter((item) => !item.disabled);
+        const checked = items.filter((item) => item.checked).length;
+
+        document.querySelectorAll(`.js-bulk-master[data-bulk-group="${group}"]`).forEach((master) => {
+            master.indeterminate = checked > 0 && checked < items.length;
+            master.checked = items.length > 0 && checked === items.length;
+        });
+    }
+
+    function updateBulkFields(group, action) {
+        if (!group) {
+            return;
+        }
+
+        document.querySelectorAll(`.js-bulk-fields[data-bulk-group="${group}"]`).forEach((container) => {
+            const actions = String(container.dataset.actions || "")
+                .split(",")
+                .map((value) => value.trim())
+                .filter(Boolean);
+            const visible = actions.includes(action);
+            container.hidden = !visible;
+
+            container.querySelectorAll("input, select, textarea").forEach((field) => {
+                field.disabled = !visible;
+            });
+        });
+    }
+
     function escapeHtml(value) {
         return String(value)
             .replaceAll("&", "&amp;")

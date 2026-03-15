@@ -25,9 +25,32 @@ final class UserRepository
         return $user ? $this->hydrateUser($user) : null;
     }
 
-    public function listUsers(): array
+    public function listUsers(array $filters = []): array
     {
-        $users = $this->db->fetchAll('SELECT * FROM users ORDER BY lower(display_name), lower(email)');
+        $sql = 'SELECT * FROM users';
+        $conditions = [];
+        $params = [];
+
+        if (!empty($filters['q'])) {
+            $conditions[] = '(display_name LIKE :search OR email LIKE :search)';
+            $params['search'] = '%' . trim((string) $filters['q']) . '%';
+        }
+
+        if (!empty($filters['status'])) {
+            if ($filters['status'] === 'active') {
+                $conditions[] = 'is_active = 1';
+            } elseif ($filters['status'] === 'inactive') {
+                $conditions[] = 'is_active = 0';
+            }
+        }
+
+        if ($conditions !== []) {
+            $sql .= ' WHERE ' . implode(' AND ', $conditions);
+        }
+
+        $sql .= ' ORDER BY lower(display_name), lower(email)';
+
+        $users = $this->db->fetchAll($sql, $params);
         return array_map(fn (array $user): array => $this->hydrateUser($user), $users);
     }
 
@@ -39,32 +62,121 @@ final class UserRepository
         );
     }
 
-    public function listInvitations(): array
+    public function findUsersByIds(array $ids): array
     {
-        return $this->db->fetchAll(
+        $ids = $this->normalizeIds($ids);
+        if ($ids === []) {
+            return [];
+        }
+
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $statement = $this->db->pdo()->prepare(
+            'SELECT * FROM users WHERE id IN (' . $placeholders . ') ORDER BY lower(display_name), lower(email)'
+        );
+        $statement->execute($ids);
+        $users = $statement->fetchAll() ?: [];
+
+        return array_map(fn (array $user): array => $this->hydrateUser($user), $users);
+    }
+
+    public function listInvitations(array $filters = []): array
+    {
+        $sql = 'SELECT invitations.*, users.display_name AS invited_by_name
+                FROM invitations
+                LEFT JOIN users ON users.id = invitations.invited_by';
+        $conditions = [];
+        $params = [];
+
+        if (!empty($filters['state'])) {
+            if ($filters['state'] === 'open') {
+                $conditions[] = 'invitations.accepted_at IS NULL AND invitations.expires_at >= :now_open';
+                $params['now_open'] = $this->now();
+            } elseif ($filters['state'] === 'accepted') {
+                $conditions[] = 'invitations.accepted_at IS NOT NULL';
+            } elseif ($filters['state'] === 'expired') {
+                $conditions[] = 'invitations.accepted_at IS NULL AND invitations.expires_at < :now_expired';
+                $params['now_expired'] = $this->now();
+            }
+        }
+
+        if ($conditions !== []) {
+            $sql .= ' WHERE ' . implode(' AND ', $conditions);
+        }
+
+        $sql .= ' ORDER BY invitations.created_at DESC';
+
+        $invitations = $this->db->fetchAll($sql, $params);
+        return array_map(fn (array $invitation): array => $this->hydrateInvitation($invitation), $invitations);
+    }
+
+    public function findInvitationsByIds(array $ids): array
+    {
+        $ids = $this->normalizeIds($ids);
+        if ($ids === []) {
+            return [];
+        }
+
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $statement = $this->db->pdo()->prepare(
             'SELECT invitations.*, users.display_name AS invited_by_name
              FROM invitations
              LEFT JOIN users ON users.id = invitations.invited_by
+             WHERE invitations.id IN (' . $placeholders . ')
              ORDER BY invitations.created_at DESC'
         );
+        $statement->execute($ids);
+        $invitations = $statement->fetchAll() ?: [];
+
+        return array_map(fn (array $invitation): array => $this->hydrateInvitation($invitation), $invitations);
     }
 
-    public function listRoles(): array
+    public function listRoles(array $filters = []): array
     {
-        $roles = $this->db->fetchAll('SELECT * FROM roles ORDER BY is_system DESC, lower(name)');
+        $sql = 'SELECT * FROM roles';
+        $conditions = [];
+        $params = [];
+
+        if (!empty($filters['q'])) {
+            $conditions[] = '(name LIKE :search OR description LIKE :search)';
+            $params['search'] = '%' . trim((string) $filters['q']) . '%';
+        }
+
+        if (!empty($filters['type'])) {
+            if ($filters['type'] === 'system') {
+                $conditions[] = 'is_system = 1';
+            } elseif ($filters['type'] === 'custom') {
+                $conditions[] = 'is_system = 0';
+            }
+        }
+
+        if ($conditions !== []) {
+            $sql .= ' WHERE ' . implode(' AND ', $conditions);
+        }
+
+        $sql .= ' ORDER BY is_system DESC, lower(name)';
+        $roles = $this->db->fetchAll($sql, $params);
         foreach ($roles as &$role) {
-            $role['permissions'] = $this->db->fetchAll(
-                'SELECT permissions.name, permissions.description
-                 FROM permissions
-                 INNER JOIN role_permissions ON role_permissions.permission_id = permissions.id
-                 WHERE role_permissions.role_id = :role_id
-                 ORDER BY permissions.name',
-                ['role_id' => $role['id']]
-            );
-            $role['permission_names'] = array_map(
-                static fn (array $permission): string => $permission['name'],
-                $role['permissions']
-            );
+            $role = $this->hydrateRole($role);
+        }
+
+        return $roles;
+    }
+
+    public function findRolesByIds(array $ids): array
+    {
+        $ids = $this->normalizeIds($ids);
+        if ($ids === []) {
+            return [];
+        }
+
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $statement = $this->db->pdo()->prepare(
+            'SELECT * FROM roles WHERE id IN (' . $placeholders . ') ORDER BY is_system DESC, lower(name)'
+        );
+        $statement->execute($ids);
+        $roles = $statement->fetchAll() ?: [];
+        foreach ($roles as &$role) {
+            $role = $this->hydrateRole($role);
         }
 
         return $roles;
@@ -73,6 +185,197 @@ final class UserRepository
     public function listPermissions(): array
     {
         return $this->db->fetchAll('SELECT * FROM permissions ORDER BY name');
+    }
+
+    public function setUsersActive(array $userIds, bool $isActive): int
+    {
+        $userIds = $this->normalizeIds($userIds);
+        if ($userIds === []) {
+            return 0;
+        }
+
+        $placeholders = implode(',', array_fill(0, count($userIds), '?'));
+        $params = array_merge([$isActive ? 1 : 0, $this->now()], $userIds);
+        $statement = $this->db->pdo()->prepare(
+            'UPDATE users SET is_active = ?, updated_at = ? WHERE id IN (' . $placeholders . ')'
+        );
+        $statement->execute($params);
+
+        return $statement->rowCount();
+    }
+
+    public function deleteUsers(array $userIds): int
+    {
+        $userIds = $this->normalizeIds($userIds);
+        if ($userIds === []) {
+            return 0;
+        }
+
+        $placeholders = implode(',', array_fill(0, count($userIds), '?'));
+        $statement = $this->db->pdo()->prepare(
+            'DELETE FROM users WHERE id IN (' . $placeholders . ')'
+        );
+        $statement->execute($userIds);
+
+        return $statement->rowCount();
+    }
+
+    public function addRoleToUsers(array $userIds, int $roleId): int
+    {
+        $userIds = $this->normalizeIds($userIds);
+        if ($userIds === []) {
+            return 0;
+        }
+
+        return $this->db->transaction(function () use ($userIds, $roleId): int {
+            $changes = 0;
+            foreach ($userIds as $userId) {
+                $exists = $this->db->fetchOne(
+                    'SELECT 1 FROM user_roles WHERE user_id = :user_id AND role_id = :role_id LIMIT 1',
+                    ['user_id' => $userId, 'role_id' => $roleId]
+                );
+                if ($exists) {
+                    continue;
+                }
+
+                $this->db->execute(
+                    'INSERT INTO user_roles (user_id, role_id) VALUES (:user_id, :role_id)',
+                    ['user_id' => $userId, 'role_id' => $roleId]
+                );
+                $changes++;
+            }
+
+            if ($changes > 0) {
+                $placeholders = implode(',', array_fill(0, count($userIds), '?'));
+                $statement = $this->db->pdo()->prepare(
+                    'UPDATE users SET updated_at = ? WHERE id IN (' . $placeholders . ')'
+                );
+                $statement->execute(array_merge([$this->now()], $userIds));
+            }
+
+            return $changes;
+        });
+    }
+
+    public function removeRoleFromUsers(array $userIds, int $roleId): int
+    {
+        $userIds = $this->normalizeIds($userIds);
+        if ($userIds === []) {
+            return 0;
+        }
+
+        return $this->db->transaction(function () use ($userIds, $roleId): int {
+            $placeholders = implode(',', array_fill(0, count($userIds), '?'));
+            $statement = $this->db->pdo()->prepare(
+                'DELETE FROM user_roles WHERE role_id = ? AND user_id IN (' . $placeholders . ')'
+            );
+            $statement->execute(array_merge([$roleId], $userIds));
+            $changes = $statement->rowCount();
+
+            if ($changes > 0) {
+                $update = $this->db->pdo()->prepare(
+                    'UPDATE users SET updated_at = ? WHERE id IN (' . $placeholders . ')'
+                );
+                $update->execute(array_merge([$this->now()], $userIds));
+            }
+
+            return $changes;
+        });
+    }
+
+    public function revokeInvitations(array $invitationIds): int
+    {
+        $invitationIds = $this->normalizeIds($invitationIds);
+        if ($invitationIds === []) {
+            return 0;
+        }
+
+        $placeholders = implode(',', array_fill(0, count($invitationIds), '?'));
+        $statement = $this->db->pdo()->prepare(
+            'DELETE FROM invitations WHERE id IN (' . $placeholders . ') AND accepted_at IS NULL AND expires_at >= ?'
+        );
+        $statement->execute(array_merge($invitationIds, [$this->now()]));
+
+        return $statement->rowCount();
+    }
+
+    public function addPermissionsToRoles(array $roleIds, array $permissionNames): int
+    {
+        $roleIds = $this->normalizeIds($roleIds);
+        $permissionIds = $this->permissionIdsByName($permissionNames);
+        if ($roleIds === [] || $permissionIds === []) {
+            return 0;
+        }
+
+        return $this->db->transaction(function () use ($roleIds, $permissionIds): int {
+            $changes = 0;
+            foreach ($roleIds as $roleId) {
+                foreach ($permissionIds as $permissionId) {
+                    $exists = $this->db->fetchOne(
+                        'SELECT 1 FROM role_permissions WHERE role_id = :role_id AND permission_id = :permission_id LIMIT 1',
+                        ['role_id' => $roleId, 'permission_id' => $permissionId]
+                    );
+                    if ($exists) {
+                        continue;
+                    }
+
+                    $this->db->execute(
+                        'INSERT INTO role_permissions (role_id, permission_id) VALUES (:role_id, :permission_id)',
+                        ['role_id' => $roleId, 'permission_id' => $permissionId]
+                    );
+                    $changes++;
+                }
+            }
+
+            if ($changes > 0) {
+                $this->touchRoles($roleIds);
+            }
+
+            return $changes;
+        });
+    }
+
+    public function removePermissionsFromRoles(array $roleIds, array $permissionNames): int
+    {
+        $roleIds = $this->normalizeIds($roleIds);
+        $permissionIds = $this->permissionIdsByName($permissionNames);
+        if ($roleIds === [] || $permissionIds === []) {
+            return 0;
+        }
+
+        return $this->db->transaction(function () use ($roleIds, $permissionIds): int {
+            $rolePlaceholders = implode(',', array_fill(0, count($roleIds), '?'));
+            $permissionPlaceholders = implode(',', array_fill(0, count($permissionIds), '?'));
+            $statement = $this->db->pdo()->prepare(
+                'DELETE FROM role_permissions
+                 WHERE role_id IN (' . $rolePlaceholders . ')
+                   AND permission_id IN (' . $permissionPlaceholders . ')'
+            );
+            $statement->execute(array_merge($roleIds, $permissionIds));
+            $changes = $statement->rowCount();
+
+            if ($changes > 0) {
+                $this->touchRoles($roleIds);
+            }
+
+            return $changes;
+        });
+    }
+
+    public function deleteRoles(array $roleIds): int
+    {
+        $roleIds = $this->normalizeIds($roleIds);
+        if ($roleIds === []) {
+            return 0;
+        }
+
+        $placeholders = implode(',', array_fill(0, count($roleIds), '?'));
+        $statement = $this->db->pdo()->prepare(
+            'DELETE FROM roles WHERE id IN (' . $placeholders . ')'
+        );
+        $statement->execute($roleIds);
+
+        return $statement->rowCount();
     }
 
     public function createInvitation(string $email, ?int $invitedBy, array $roleIds, int $ttlDays = 14): array
@@ -329,6 +632,71 @@ final class UserRepository
         $user['permissions'] = array_map(static fn (array $permission): string => $permission['name'], $permissions);
 
         return $user;
+    }
+
+    private function hydrateInvitation(array $invitation): array
+    {
+        $invitation['is_open'] = $invitation['accepted_at'] === null
+            && strtotime((string) $invitation['expires_at']) >= time();
+
+        return $invitation;
+    }
+
+    private function hydrateRole(array $role): array
+    {
+        $role['permissions'] = $this->db->fetchAll(
+            'SELECT permissions.name, permissions.description
+             FROM permissions
+             INNER JOIN role_permissions ON role_permissions.permission_id = permissions.id
+             WHERE role_permissions.role_id = :role_id
+             ORDER BY permissions.name',
+            ['role_id' => $role['id']]
+        );
+        $role['permission_names'] = array_map(
+            static fn (array $permission): string => $permission['name'],
+            $role['permissions']
+        );
+
+        return $role;
+    }
+
+    private function normalizeIds(array $ids): array
+    {
+        return array_values(array_unique(array_filter(array_map('intval', $ids), static fn (int $id): bool => $id > 0)));
+    }
+
+    private function permissionIdsByName(array $permissionNames): array
+    {
+        $permissionNames = array_values(array_unique(array_filter(array_map(
+            static fn (mixed $name): string => trim((string) $name),
+            $permissionNames
+        ))));
+        if ($permissionNames === []) {
+            return [];
+        }
+
+        $placeholders = implode(',', array_fill(0, count($permissionNames), '?'));
+        $statement = $this->db->pdo()->prepare(
+            'SELECT id FROM permissions WHERE name IN (' . $placeholders . ')'
+        );
+        $statement->execute($permissionNames);
+        $rows = $statement->fetchAll() ?: [];
+
+        return array_map(static fn (array $row): int => (int) $row['id'], $rows);
+    }
+
+    private function touchRoles(array $roleIds): void
+    {
+        $roleIds = $this->normalizeIds($roleIds);
+        if ($roleIds === []) {
+            return;
+        }
+
+        $placeholders = implode(',', array_fill(0, count($roleIds), '?'));
+        $statement = $this->db->pdo()->prepare(
+            'UPDATE roles SET updated_at = ? WHERE id IN (' . $placeholders . ')'
+        );
+        $statement->execute(array_merge([$this->now()], $roleIds));
     }
 
     private function now(): string

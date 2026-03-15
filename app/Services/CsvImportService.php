@@ -12,6 +12,8 @@ use RuntimeException;
 
 final class CsvImportService
 {
+    private const DEFAULT_MEDIA_FORMAT = 'dvd';
+
     public const CANONICAL_FIELDS = [
         'kind',
         'title',
@@ -102,6 +104,10 @@ final class CsvImportService
             $rowWarnings = [];
             if ($rowErrors === []) {
                 $normalized['kind'] = $normalized['kind'] ?: 'movie';
+                if (empty($normalized['media_format'])) {
+                    $normalized['media_format'] = self::DEFAULT_MEDIA_FORMAT;
+                    $rowWarnings[] = 'Format fehlte, es wird automatisch ein DVD-Exemplar angelegt.';
+                }
                 $normalized['genres'] = $this->splitGenres((string) ($normalized['genres'] ?? ''));
                 $duplicate = $this->catalog->findDuplicateTitle([
                     'kind' => $normalized['kind'],
@@ -187,25 +193,24 @@ final class CsvImportService
                 $this->catalog->upsertExternalRef($titleId, 'import', (string) $data['external_id'], null, null);
             }
 
-            if (!empty($data['media_format'])) {
-                $copy = $this->catalog->findDuplicateCopy($titleId, [
-                    'barcode' => $data['barcode'] ?? null,
-                    'media_format' => $data['media_format'],
-                    'edition' => $data['edition'] ?? null,
-                    'storage_location' => $data['storage_location'] ?? null,
-                ]);
+            $mediaFormat = !empty($data['media_format']) ? (string) $data['media_format'] : self::DEFAULT_MEDIA_FORMAT;
+            $copy = $this->catalog->findDuplicateCopy($titleId, [
+                'barcode' => $data['barcode'] ?? null,
+                'media_format' => $mediaFormat,
+                'edition' => $data['edition'] ?? null,
+                'storage_location' => $data['storage_location'] ?? null,
+            ]);
 
-                if (!$copy) {
-                    $this->catalog->storeCopy($titleId, [
-                        'media_format' => $data['media_format'],
-                        'edition' => $data['edition'] ?? null,
-                        'barcode' => $data['barcode'] ?? null,
-                        'item_condition' => $data['condition'] ?? null,
-                        'storage_location' => $data['storage_location'] ?? null,
-                        'notes' => $data['notes'] ?? null,
-                    ]);
-                    $copies++;
-                }
+            if (!$copy) {
+                $this->catalog->storeCopy($titleId, [
+                    'media_format' => $mediaFormat,
+                    'edition' => $data['edition'] ?? null,
+                    'barcode' => $data['barcode'] ?? null,
+                    'item_condition' => $data['condition'] ?? null,
+                    'storage_location' => $data['storage_location'] ?? null,
+                    'notes' => $data['notes'] ?? null,
+                ]);
+                $copies++;
             }
 
             if ($this->isTruthy($data['watched'] ?? null)) {

@@ -34,7 +34,7 @@ final class SuggestionController extends Controller
         ]);
     }
 
-    public function json(Request $request): Response
+    public function api(Request $request): Response
     {
         /** @var RecommendationService $recommendations */
         $recommendations = $this->app->make(RecommendationService::class);

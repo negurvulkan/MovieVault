@@ -84,6 +84,17 @@
                 </form>
             </div>
 
+            {if $title_item && !$title_item.series_id && 'catalog.edit'|has_permission:$permissions}
+                <div class="panel-card mt-4">
+                    <h2 class="h4 mb-3">Serienstamm nachtraeglich anlegen</h2>
+                    <p class="text-secondary">Nuetzlich fuer importierte Serienboxen: Der aktuelle Titel wird mit einem neuen oder bereits vorhandenen Serienstamm gleichen Namens verknuepft.</p>
+                    <form method="post" action="{route name='catalog.series.create' id=$title_item.id}">
+                        <input type="hidden" name="csrf_token" value="{$csrf_token}">
+                        <button type="submit" class="btn btn-outline-dark">Als Serienstamm verknuepfen</button>
+                    </form>
+                </div>
+            {/if}
+
             {if $title_item && 'copies.manage'|has_permission:$permissions}
                 <div class="panel-card mt-4">
                     <h2 class="h4 mb-3">Exemplare</h2>

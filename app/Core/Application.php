@@ -20,13 +20,20 @@ use App\Repositories\SettingRepository;
 use App\Repositories\UserRepository;
 use App\Repositories\WatchRepository;
 use App\Services\AuthService;
+use App\Services\BulkSnapshotService;
+use App\Services\CatalogBulkService;
 use App\Services\CsvImportService;
 use App\Services\HttpClient;
+use App\Services\InvitationBulkService;
 use App\Services\InstallerService;
 use App\Services\MetadataService;
 use App\Services\PermissionGate;
 use App\Services\RecommendationService;
+use App\Services\RoleBulkService;
+use App\Services\SeriesBulkService;
 use App\Services\StatsService;
+use App\Services\UserBulkService;
+use App\Services\WatchedBulkService;
 use Throwable;
 
 final class Application
@@ -207,6 +214,9 @@ final class Application
             $this->config
         ));
         $this->container->singleton(PermissionGate::class, fn (Container $c) => new PermissionGate($c->get(AuthService::class)));
+        $this->container->singleton(BulkSnapshotService::class, fn (Container $c) => new BulkSnapshotService(
+            $c->get(Session::class)
+        ));
         $this->container->singleton(View::class, fn (Container $c) => new View(
             $this->config,
             $c->get(Router::class),
@@ -226,6 +236,24 @@ final class Application
             $this->config,
             $c->get(CatalogRepository::class),
             $c->get(WatchRepository::class)
+        ));
+        $this->container->singleton(CatalogBulkService::class, fn (Container $c) => new CatalogBulkService(
+            $c->get(CatalogRepository::class)
+        ));
+        $this->container->singleton(SeriesBulkService::class, fn (Container $c) => new SeriesBulkService(
+            $c->get(CatalogRepository::class)
+        ));
+        $this->container->singleton(WatchedBulkService::class, fn (Container $c) => new WatchedBulkService(
+            $c->get(WatchRepository::class)
+        ));
+        $this->container->singleton(UserBulkService::class, fn (Container $c) => new UserBulkService(
+            $c->get(UserRepository::class)
+        ));
+        $this->container->singleton(InvitationBulkService::class, fn (Container $c) => new InvitationBulkService(
+            $c->get(UserRepository::class)
+        ));
+        $this->container->singleton(RoleBulkService::class, fn (Container $c) => new RoleBulkService(
+            $c->get(UserRepository::class)
         ));
         $this->container->singleton(RecommendationService::class, fn (Container $c) => new RecommendationService(
             $c->get(CatalogRepository::class),

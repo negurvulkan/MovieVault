@@ -236,6 +236,14 @@ body {
     display: block;
 }
 
+.bulk-toolbar {
+    background: linear-gradient(135deg, rgba(255, 249, 240, 0.95), rgba(245, 236, 221, 0.92));
+}
+
+.bulk-check-col {
+    width: 3rem;
+}
+
 .table-panel {
     overflow: hidden;
 }
