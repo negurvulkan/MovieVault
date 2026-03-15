@@ -27,7 +27,7 @@
                     <option value="season" {if $filters.kind === 'season'}selected{/if}>Staffel</option>
                 </select>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <label class="form-label">Genre</label>
                 <select name="genre" class="form-select">
                     <option value="">Alle</option>
@@ -42,6 +42,13 @@
                     <option value="">Alle</option>
                     <option value="unwatched" {if $filters.watch_filter === 'unwatched'}selected{/if}>Ungesehen</option>
                     <option value="watched" {if $filters.watch_filter === 'watched'}selected{/if}>Gesehen</option>
+                </select>
+            </div>
+            <div class="col-md-1">
+                <label class="form-label">Ansicht</label>
+                <select name="view" class="form-select">
+                    <option value="list" {if $filters.view === 'list'}selected{/if}>Liste</option>
+                    <option value="cards" {if $filters.view === 'cards'}selected{/if}>Karten</option>
                 </select>
             </div>
             <div class="col-md-1 d-grid">
@@ -61,6 +68,7 @@
         <input type="hidden" name="filters[kind]" value="{$filters.kind}">
         <input type="hidden" name="filters[genre]" value="{$filters.genre}">
         <input type="hidden" name="filters[watch_filter]" value="{$filters.watch_filter}">
+        <input type="hidden" name="filters[view]" value="{$filters.view}">
 
         {if $has_catalog_bulk}
             <div class="panel-card bulk-toolbar">
@@ -113,64 +121,125 @@
             </div>
         {/if}
 
-        <div class="table-panel">
-            <table class="table align-middle mb-0">
-                <thead>
-                    <tr>
-                        {if $has_catalog_bulk}
-                            <th class="bulk-check-col">
-                                <input class="form-check-input js-bulk-master" type="checkbox" value="1" data-bulk-group="catalog">
-                            </th>
-                        {/if}
-                        <th>Titel</th>
-                        <th>Typ</th>
-                        <th>Genres</th>
-                        <th>Exemplare</th>
-                        <th>Status</th>
-                        <th></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {foreach $titles as $title}
+        {if $filters.view === 'cards'}
+            <div class="catalog-grid">
+                {foreach $titles as $title}
+                    <article class="catalog-card">
+                        <div class="catalog-card__poster">
+                            {if $title.poster_path|default:''}
+                                <img class="catalog-card__image" src="{asset path=$title.poster_path}" alt="{$title.title}">
+                            {else}
+                                <div class="catalog-card__placeholder">Kein Cover</div>
+                            {/if}
+                            {if $has_catalog_bulk}
+                                <div class="catalog-card__bulk">
+                                    <input class="form-check-input js-bulk-item" type="checkbox" name="selected_ids[]" value="{$title.id}" data-bulk-group="catalog">
+                                </div>
+                            {/if}
+                        </div>
+                        <div class="catalog-card__body">
+                            <div class="d-flex justify-content-between gap-3 align-items-start mb-2">
+                                <div>
+                                    <h2 class="h5 mb-1">{$title.title}</h2>
+                                    <div class="text-secondary small">
+                                        {if $title.kind === 'season'}
+                                            {$title.series_title|default:$title.title} - Staffel {$title.season_number|default:'?'}
+                                        {else}
+                                            {$title.year|default:'Film'}
+                                        {/if}
+                                    </div>
+                                </div>
+                                <span class="badge text-bg-dark">{if $title.kind === 'season'}Staffel{else}Film{/if}</span>
+                            </div>
+                            <div class="d-flex flex-wrap gap-2 mb-3">
+                                {foreach $title.genres as $genre}
+                                    <span class="badge text-bg-light border">{$genre}</span>
+                                {/foreach}
+                            </div>
+                            <div class="catalog-card__meta mb-3">
+                                <span>{$title.copies_count} Exemplare</span>
+                                <span>{if $title.watched}gesehen{else}offen{/if}</span>
+                            </div>
+                            {if 'catalog.edit'|has_permission:$permissions}
+                                <a class="btn btn-sm btn-outline-primary" href="{route name='catalog.edit' id=$title.id}">Bearbeiten</a>
+                            {/if}
+                        </div>
+                    </article>
+                {foreachelse}
+                    <div class="panel-card text-center text-secondary py-4">Noch keine passenden Eintraege vorhanden.</div>
+                {/foreach}
+            </div>
+        {else}
+            <div class="table-panel">
+                <table class="table align-middle mb-0">
+                    <thead>
                         <tr>
                             {if $has_catalog_bulk}
-                                <td class="bulk-check-col">
-                                    <input class="form-check-input js-bulk-item" type="checkbox" name="selected_ids[]" value="{$title.id}" data-bulk-group="catalog">
-                                </td>
+                                <th class="bulk-check-col">
+                                    <input class="form-check-input js-bulk-master" type="checkbox" value="1" data-bulk-group="catalog">
+                                </th>
                             {/if}
-                            <td>
-                                <strong>{$title.title}</strong>
-                                <div class="text-secondary small">
-                                    {if $title.kind === 'season'}
-                                        {$title.series_title|default:$title.title} - Staffel {$title.season_number|default:'?'}
+                            <th>Titel</th>
+                            <th>Typ</th>
+                            <th>Genres</th>
+                            <th>Exemplare</th>
+                            <th>Status</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {foreach $titles as $title}
+                            <tr>
+                                {if $has_catalog_bulk}
+                                    <td class="bulk-check-col">
+                                        <input class="form-check-input js-bulk-item" type="checkbox" name="selected_ids[]" value="{$title.id}" data-bulk-group="catalog">
+                                    </td>
+                                {/if}
+                                <td>
+                                    <div class="catalog-row-title">
+                                        <div class="cover-thumb cover-thumb--sm">
+                                            {if $title.poster_path|default:''}
+                                                <img src="{asset path=$title.poster_path}" alt="{$title.title}">
+                                            {else}
+                                                <div class="cover-thumb__placeholder">Kein Cover</div>
+                                            {/if}
+                                        </div>
+                                        <div>
+                                            <strong>{$title.title}</strong>
+                                            <div class="text-secondary small">
+                                                {if $title.kind === 'season'}
+                                                    {$title.series_title|default:$title.title} - Staffel {$title.season_number|default:'?'}
+                                                {else}
+                                                    {$title.year|default:'Film'}
+                                                {/if}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td><span class="badge text-bg-dark">{if $title.kind === 'season'}Staffel{else}Film{/if}</span></td>
+                                <td>{$title.genres|join_list}</td>
+                                <td>{$title.copies_count}</td>
+                                <td>
+                                    {if $title.watched}
+                                        <span class="badge text-bg-success">gesehen</span>
                                     {else}
-                                        {$title.year|default:'Film'}
+                                        <span class="badge text-bg-secondary">offen</span>
                                     {/if}
-                                </div>
-                            </td>
-                            <td><span class="badge text-bg-dark">{if $title.kind === 'season'}Staffel{else}Film{/if}</span></td>
-                            <td>{$title.genres|join_list}</td>
-                            <td>{$title.copies_count}</td>
-                            <td>
-                                {if $title.watched}
-                                    <span class="badge text-bg-success">gesehen</span>
-                                {else}
-                                    <span class="badge text-bg-secondary">offen</span>
-                                {/if}
-                            </td>
-                            <td class="text-end">
-                                {if 'catalog.edit'|has_permission:$permissions}
-                                    <a class="btn btn-sm btn-outline-primary" href="{route name='catalog.edit' id=$title.id}">Bearbeiten</a>
-                                {/if}
-                            </td>
-                        </tr>
-                    {foreachelse}
-                        <tr>
-                            <td colspan="{if $has_catalog_bulk}7{else}6{/if}" class="text-center text-secondary py-4">Noch keine passenden Eintraege vorhanden.</td>
-                        </tr>
-                    {/foreach}
-                </tbody>
-            </table>
-        </div>
+                                </td>
+                                <td class="text-end">
+                                    {if 'catalog.edit'|has_permission:$permissions}
+                                        <a class="btn btn-sm btn-outline-primary" href="{route name='catalog.edit' id=$title.id}">Bearbeiten</a>
+                                    {/if}
+                                </td>
+                            </tr>
+                        {foreachelse}
+                            <tr>
+                                <td colspan="{if $has_catalog_bulk}7{else}6{/if}" class="text-center text-secondary py-4">Noch keine passenden Eintraege vorhanden.</td>
+                            </tr>
+                        {/foreach}
+                    </tbody>
+                </table>
+            </div>
+        {/if}
     </form>
 {/block}

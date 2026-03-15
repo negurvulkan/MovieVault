@@ -32,7 +32,7 @@
                     <div class="d-flex justify-content-between gap-3">
                         <div>
                             <h3>${escapeHtml(result.title || "Treffer")}</h3>
-                            <div class="small text-secondary">${escapeHtml(result.provider)}${result.year ? " · " + escapeHtml(String(result.year)) : ""}</div>
+                            <div class="small text-secondary">${escapeHtml(result.provider)}${result.year ? " - " + escapeHtml(String(result.year)) : ""}</div>
                         </div>
                         <button type="button"
                                 class="btn btn-sm btn-outline-primary js-apply-metadata"
@@ -89,15 +89,22 @@
             return;
         }
 
+        const posterMarkup = suggestion.poster_path
+            ? `<div class="suggestion-hero__media"><img class="suggestion-hero__poster" src="${escapeHtml(assetPath(suggestion.poster_path))}" alt="${escapeHtml(suggestion.title || "Cover")}"></div>`
+            : '<div class="suggestion-hero__media"><div class="suggestion-hero__placeholder">Kein Cover</div></div>';
+
         card.innerHTML = `
-            <p class="eyebrow">Heute passt vielleicht</p>
-            <h2 class="display-6 mb-3">${escapeHtml(suggestion.title)}</h2>
-            <p class="lead text-secondary">${suggestion.kind === "season"
-                ? `${escapeHtml(suggestion.series_title || suggestion.title || "")} · Staffel ${escapeHtml(String(suggestion.season_number || ""))}`
-                : escapeHtml(String(suggestion.year || "Film"))}</p>
-            <p class="mb-4">${escapeHtml(suggestion.overview || "Keine Beschreibung vorhanden.")}</p>
-            <div class="d-flex flex-wrap gap-2 mb-4">${(suggestion.genres || []).map((genre) => `<span class="badge text-bg-dark">${escapeHtml(genre)}</span>`).join("")}</div>
-            <button type="button" class="btn btn-outline-secondary js-refresh-suggestion">Noch einen Vorschlag</button>
+            ${posterMarkup}
+            <div class="suggestion-hero__body">
+                <p class="eyebrow">Heute passt vielleicht</p>
+                <h2 class="display-6 mb-3">${escapeHtml(suggestion.title)}</h2>
+                <p class="lead text-secondary">${suggestion.kind === "season"
+                    ? `${escapeHtml(suggestion.series_title || suggestion.title || "")} - Staffel ${escapeHtml(String(suggestion.season_number || ""))}`
+                    : escapeHtml(String(suggestion.year || "Film"))}</p>
+                <p class="mb-4">${escapeHtml(suggestion.overview || "Keine Beschreibung vorhanden.")}</p>
+                <div class="d-flex flex-wrap gap-2 mb-4">${(suggestion.genres || []).map((genre) => `<span class="badge text-bg-dark">${escapeHtml(genre)}</span>`).join("")}</div>
+                <button type="button" class="btn btn-outline-secondary js-refresh-suggestion">Noch einen Vorschlag</button>
+            </div>
         `;
     }
 
@@ -200,5 +207,11 @@
             .replaceAll(">", "&gt;")
             .replaceAll('"', "&quot;")
             .replaceAll("'", "&#039;");
+    }
+
+    function assetPath(path) {
+        const basePath = String(appConfig.basePath || "").replace(/\/$/, "");
+        const normalized = String(path || "").replace(/^\/+/, "");
+        return `${basePath}/${normalized}`.replace(/\/{2,}/g, "/");
     }
 })();

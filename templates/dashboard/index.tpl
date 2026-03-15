@@ -11,10 +11,19 @@
                 <p class="lead text-secondary mb-0">Die wichtigsten Zahlen und ein spontaner Vorschlag aus deiner Sammlung.</p>
             </div>
             {if $quick_suggestion}
-                <div class="suggestion-callout">
-                    <span class="badge text-bg-warning">Schnellvorschlag</span>
-                    <strong>{$quick_suggestion.title}</strong>
-                    <span>{$quick_suggestion.genres|join_list}</span>
+                <div class="suggestion-callout suggestion-callout--poster">
+                    <div class="suggestion-callout__poster">
+                        {if $quick_suggestion.poster_path|default:''}
+                            <img src="{asset path=$quick_suggestion.poster_path}" alt="{$quick_suggestion.title}">
+                        {else}
+                            <div class="suggestion-callout__placeholder">Kein Cover</div>
+                        {/if}
+                    </div>
+                    <div>
+                        <span class="badge text-bg-warning mb-2">Schnellvorschlag</span>
+                        <strong>{$quick_suggestion.title}</strong>
+                        <span>{$quick_suggestion.genres|join_list}</span>
+                    </div>
                 </div>
             {/if}
         </div>
@@ -41,9 +50,18 @@
                 <div class="vstack gap-3">
                     {foreach $dashboard.recent_titles as $title}
                         <div class="list-card">
-                            <div>
-                                <strong>{$title.title}</strong>
-                                <div class="text-secondary small">{if $title.kind === 'season'}{$title.series_title|default:$title.title} · Staffel {$title.season_number|default:'?'}{else}{$title.year|default:'Film'}{/if}</div>
+                            <div class="d-flex gap-3 align-items-center">
+                                <div class="cover-thumb">
+                                    {if $title.poster_path|default:''}
+                                        <img src="{asset path=$title.poster_path}" alt="{$title.title}">
+                                    {else}
+                                        <div class="cover-thumb__placeholder">Kein Cover</div>
+                                    {/if}
+                                </div>
+                                <div>
+                                    <strong>{$title.title}</strong>
+                                    <div class="text-secondary small">{if $title.kind === 'season'}{$title.series_title|default:$title.title} - Staffel {$title.season_number|default:'?'}{else}{$title.year|default:'Film'}{/if}</div>
+                                </div>
                             </div>
                             <div class="text-secondary small">{$title.genres|join_list}</div>
                         </div>
@@ -73,7 +91,7 @@
                     <strong>{$dashboard.last_watch.title}</strong>
                     <p class="text-secondary mb-1">{$dashboard.last_watch.watched_at|fmt_date}</p>
                     {if $dashboard.last_watch.series_title|default:''}
-                        <p class="mb-0">{$dashboard.last_watch.series_title|default:$dashboard.last_watch.title} · Staffel {$dashboard.last_watch.season_number|default:'?'}</p>
+                        <p class="mb-0">{$dashboard.last_watch.series_title|default:$dashboard.last_watch.title} - Staffel {$dashboard.last_watch.season_number|default:'?'}</p>
                     {/if}
                 {else}
                     <p class="text-secondary mb-0">Noch kein Watch-Event vorhanden.</p>

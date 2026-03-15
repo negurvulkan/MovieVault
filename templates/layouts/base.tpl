@@ -59,6 +59,7 @@
     <script>
         window.movieVault = {
             csrfToken: '{$csrf_token|escape:"javascript"}',
+            basePath: '{$base_path|escape:"javascript"}',
             routes: {
                 metadataSearch: '{route name="api.metadata.search"}',
                 metadataApply: '{route name="api.metadata.apply"}',

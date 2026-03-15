@@ -41,21 +41,32 @@
         </form>
     </div>
 
-    <div class="hero-card js-suggestion-card" data-mode="{$query.mode}" data-genre="{$query.genre|default:''}" data-filter="{$query.filter}">
+    <div class="hero-card suggestion-hero js-suggestion-card" data-mode="{$query.mode}" data-genre="{$query.genre|default:''}" data-filter="{$query.filter}">
         {if $suggestion}
-            <p class="eyebrow">Heute passt vielleicht</p>
-            <h2 class="display-6 mb-3">{$suggestion.title}</h2>
-            <p class="lead text-secondary">
-                {if $suggestion.kind === 'season'}{$suggestion.series_title|default:$suggestion.title} · Staffel {$suggestion.season_number|default:'?'}{else}{$suggestion.year|default:'Film'}{/if}
-            </p>
-            <p class="mb-4">{$suggestion.overview|default:'Keine Beschreibung vorhanden.'}</p>
-            <div class="d-flex flex-wrap gap-2 mb-4">
-                {foreach $suggestion.genres as $genre}<span class="badge text-bg-dark">{$genre}</span>{/foreach}
+            <div class="suggestion-hero__media">
+                {if $suggestion.poster_path|default:''}
+                    <img class="suggestion-hero__poster" src="{asset path=$suggestion.poster_path}" alt="{$suggestion.title}">
+                {else}
+                    <div class="suggestion-hero__placeholder">Kein Cover</div>
+                {/if}
             </div>
-            <button type="button" class="btn btn-outline-secondary js-refresh-suggestion">Noch einen Vorschlag</button>
+            <div class="suggestion-hero__body">
+                <p class="eyebrow">Heute passt vielleicht</p>
+                <h2 class="display-6 mb-3">{$suggestion.title}</h2>
+                <p class="lead text-secondary">
+                    {if $suggestion.kind === 'season'}{$suggestion.series_title|default:$suggestion.title} - Staffel {$suggestion.season_number|default:'?'}{else}{$suggestion.year|default:'Film'}{/if}
+                </p>
+                <p class="mb-4">{$suggestion.overview|default:'Keine Beschreibung vorhanden.'}</p>
+                <div class="d-flex flex-wrap gap-2 mb-4">
+                    {foreach $suggestion.genres as $genre}<span class="badge text-bg-dark">{$genre}</span>{/foreach}
+                </div>
+                <button type="button" class="btn btn-outline-secondary js-refresh-suggestion">Noch einen Vorschlag</button>
+            </div>
         {else}
-            <p class="eyebrow">Keine Treffer</p>
-            <h2 class="h3">Fuer diese Kombination ist aktuell nichts verfuegbar.</h2>
+            <div class="suggestion-hero__body">
+                <p class="eyebrow">Keine Treffer</p>
+                <h2 class="h3">Fuer diese Kombination ist aktuell nichts verfuegbar.</h2>
+            </div>
         {/if}
     </div>
 {/block}

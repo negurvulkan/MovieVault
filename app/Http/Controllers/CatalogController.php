@@ -26,6 +26,9 @@ final class CatalogController extends Controller
             'kind' => (string) $request->query('kind', ''),
             'genre' => (string) $request->query('genre', ''),
             'watch_filter' => (string) $request->query('watch_filter', ''),
+            'view' => in_array((string) $request->query('view', 'list'), ['list', 'cards'], true)
+                ? (string) $request->query('view', 'list')
+                : 'list',
         ];
 
         return $this->render('catalog/index.tpl', [
@@ -258,6 +261,9 @@ final class CatalogController extends Controller
             'kind' => trim((string) ($input['kind'] ?? '')),
             'genre' => trim((string) ($input['genre'] ?? '')),
             'watch_filter' => trim((string) ($input['watch_filter'] ?? '')),
+            'view' => in_array((string) ($input['view'] ?? 'list'), ['list', 'cards'], true)
+                ? (string) ($input['view'] ?? 'list')
+                : 'list',
         ];
     }
 
